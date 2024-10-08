@@ -9,7 +9,7 @@ import os                                # To handle file system operations
 import tempfile                          # To create temporary files and directories
 
 # Define the path to the PDF file
-pdf_path = 'your_large_document.pdf'
+pdf_path = 'pre_pdf.pdf'
 
 # Define the path to Tesseract OCR executable (change this according to your Tesseract installation)
 # pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'  # For Linux
