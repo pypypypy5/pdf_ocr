@@ -1,0 +1,70 @@
+# Import necessary libraries
+from pdf2image import convert_from_path  # To convert PDF pages to images
+import pytesseract                       # Python wrapper for Tesseract OCR
+from pytesseract import Output           # To get output details from OCR
+from PIL import Image                    # Image processing
+import cv2                               # OpenCV for advanced image processing
+import numpy as np                       # Numerical operations
+import os                                # To handle file system operations
+import tempfile                          # To create temporary files and directories
+
+# Define the path to the PDF file
+pdf_path = 'your_large_document.pdf'
+
+# Define the path to Tesseract OCR executable (change this according to your Tesseract installation)
+# pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'  # For Linux
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # For Windows
+
+# Create a temporary directory to store images
+with tempfile.TemporaryDirectory() as temp_dir:
+    # Convert PDF to images
+    images = convert_from_path(pdf_path, dpi=300, output_folder=temp_dir, fmt='png', thread_count=4)
+
+    # Log progress of image conversion
+    print(f"PDF to image conversion complete. {len(images)} pages converted.")
+
+    # Initialize a variable to hold the extracted text in a grouped format
+    extracted_text = {}
+
+    # Process each image (page) one by one
+    for page_num, img in enumerate(images):
+        print(f"Processing page {page_num + 1}/{len(images)}...")
+
+        # Convert PIL Image to OpenCV image format
+        img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+        # Preprocess the image for better OCR accuracy
+        # Convert to grayscale
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+
+        # Binarization using Otsu's thresholding
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        # Noise removal with morphological operations
+        kernel = np.ones((1, 1), np.uint8)
+        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
+
+        # Dilate to connect text parts
+        dilation = cv2.dilate(opening, kernel, iterations=1)
+
+        # Erode to remove thin lines
+        erosion = cv2.erode(dilation, kernel, iterations=1)
+
+        # Optional: Apply median blur to reduce salt-and-pepper noise
+        processed_img = cv2.medianBlur(erosion, 3)
+
+        # Use Tesseract to do OCR on the processed image
+        text = pytesseract.image_to_string(processed_img, lang='eng')
+
+        # Add the extracted text to the dictionary with page number as the key
+        extracted_text[page_num + 1] = text
+
+        # Add progress log to indicate page completion
+        print(f"Page {page_num + 1} extraction complete.")
+
+    # After processing all pages, save the extracted text to a single file
+    with open('grouped_extracted_text.txt', 'w', encoding='utf-8') as f:
+        for page, text in extracted_text.items():
+            f.write(f"{page}: {text}\n")
+
+    print("Text extraction complete. The grouped text has been saved to 'grouped_extracted_text.txt'.")
